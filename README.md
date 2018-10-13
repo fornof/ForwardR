@@ -4,9 +4,12 @@ This will read sms messages on a phone and foward messages to recipients when ce
 # To Download : 
 ## on windows: 
 ### Make the directory and clone
-  mkdir -p c:\projects\android 
-  cd c:\projects\android
-  git clone https://github.com/fornof/ForwardR.git
+  > mkdir -p c:\projects\android 
+  
+  > cd c:\projects\android
+  
+  > git clone https://github.com/fornof/ForwardR.git
+  
 ### Open in android studio: 
 1. Open up Android Studio 
 2. File -> Open -> Navigate to c:\projects\android\ForwardR -> open
