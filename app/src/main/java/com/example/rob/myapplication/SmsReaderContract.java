@@ -15,6 +15,7 @@ public final class SmsReaderContract {
             public static final String COLUMN_NAME_USR_COMMAND_ADDRESS = "usr_command_address";
             public static final String COLUMN_NAME_USR_SPECIAL_CHAR_1 = "usr_special_char_1";
             public static final String COLUMN_NAME_USR_SPECIAL_CHAR_2 = "usr_special_char_2";
+            public static final String COLUMN_NAME_USR_LAST_INDEX ="usr_last_index";
         }
     /* Inner class that defines the table contents */
     public static class PhoneEntry implements BaseColumns {
@@ -25,10 +26,11 @@ public final class SmsReaderContract {
         public static final String COLUMN_NAME_PN_NICKNAME = "pn_nickname";
     }
     public static final String SETTINGS_CREATE_ENTRIES =
-            "CREATE TABLE IF NOT EXISTS" + SettingsEntry.TABLE_NAME + " (" +
+            "CREATE TABLE IF NOT EXISTS " + SettingsEntry.TABLE_NAME + " (" +
                     SettingsEntry._ID + " INTEGER PRIMARY KEY," +
                     SettingsEntry.COLUMN_NAME_USR_COMMAND_ADDRESS + " TEXT," +
                     SettingsEntry.COLUMN_NAME_USR_SPECIAL_CHAR_1 + " TEXT," +
+                    SettingsEntry.COLUMN_NAME_USR_LAST_INDEX + " INTEGER," +
                     SettingsEntry.COLUMN_NAME_USR_SPECIAL_CHAR_2 + "TEXT )";
 
     public static final String SETTINGS_DELETE_ENTRIES =

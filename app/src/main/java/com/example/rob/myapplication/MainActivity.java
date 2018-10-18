@@ -1,8 +1,11 @@
 package com.example.rob.myapplication;
 
 import android.Manifest;
+import android.content.BroadcastReceiver;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -11,6 +14,7 @@ import android.support.design.widget.BottomNavigationView;
 import android.support.v4.content.PermissionChecker;
 import android.support.v7.app.AppCompatActivity;
 import android.telephony.SmsManager;
+import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
@@ -23,6 +27,8 @@ import java.util.List;
 import java.util.Map;
 
 public class MainActivity extends AppCompatActivity {
+    protected SQLiteDatabase db = null;
+    private final BroadcastReceiver mybroadcast = new SmsListener(MainActivity.this, this);
     protected class SMSMessage{
 //        private String _id;
 //        private String address;
@@ -126,40 +132,149 @@ public class MainActivity extends AppCompatActivity {
         }
 
     }
+
+    @Override
+    protected void onDestroy() {
+        // unregister listener
+        unregisterReceiver(mybroadcast);
+
+        super.onDestroy();
+
+    }
+
+
+
+    private void appendLog(String message) {
+        Log.d("robert", message);
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        // register a listener to listen to ids.
+        IntentFilter filter = new IntentFilter();
+        filter.addAction("android.provider.Telephony.SMS_RECEIVED");
+
+//     <receiver android:name=".BinarySMSReceiver">
+//            <intent-filter>
+//                <action android:name="android.provider.Telephony.WAP_PUSH_RECEIVED" />
+//                <data android:mimeType="application/vnd.wap.mms-message" />
+//            </intent-filter>
+//        </receiver>
+        IntentFilter mmsData = new IntentFilter("android.provider.Telephony.WAP_PUSH_RECEIVED");
+        try {
+            mmsData.addDataType("application/vnd.wap.mms-message");
+        } catch (IntentFilter.MalformedMimeTypeException e) {
+            e.printStackTrace();
+        }
+        //IntentFilter mmsReceived = new IntentFilter("android.provider.Telephony.SMS_RECEIVED");
+
+        registerReceiver(mybroadcast, filter);
+        registerReceiver(mybroadcast, mmsData);
+        // get database
+        db = getDb();
+        SmsListener listener = new SmsListener();
+        PhoneDB.createIfNotExists(db);
+
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        if(checkPermsssionsSms()){
-            List<SMSMessage> message  = getMessage(null,5);
-            System.out.println(message.get(0));
 
-        }
-        final TextView message =(TextView) findViewById(R.id.txtMessage);
-        final TextView phoneNo =(TextView) findViewById(R.id.txtPhone);
-        Button txtSend = (Button) findViewById(R.id.btnTxtHello);
-        txtSend.setOnClickListener(new View.OnClickListener(){
-            @Override
-            public void onClick(View v) {
-
-                // send the message to the phone number provided
-                sendText(message.getText().toString(),phoneNo.getText().toString());
-
+            if (!checkPermsssionsSms()) {
+                setlblMessage(this, "Something, something permissions...");
+                try {
+                    Thread.sleep(2000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
             }
-        });
+            else{
+                setlblMessage(this, "Permissions are alright.");
+            }
+
+//        if(checkPermsssionsSms()){
+//            List<SMSMessage> message  = getMessage(null,5);
+//            System.out.println(message.get(0));
+//
+//        }
+        try {
+            Setting current = SettingDB.getCurrentSetting(db);
+            setlblMsgCommander(MainActivity.this, "Commander phone is set to:\n " + current.commanderAddress);
+        }catch(Exception ex){
+            setlblMsgCommander(MainActivity.this, "Commander phone is NOT SET\n PLEASE SET IT");
+        }
+        final TextView txtCommander =(TextView) findViewById(R.id.txtCommanderAddress);
+        Button btnSetCommander = (Button)findViewById(R.id.btnSetCommander);
+        final Setting setting = new Setting();
+
+        btnSetCommander.setOnClickListener(new View.OnClickListener(){
+
+            @Override
+            public void onClick(View view) {
+                setting.commanderAddress = txtCommander.getText().toString();
+                SettingDB.insertSettings(setting, db);
+                Setting current = SettingDB.getCurrentSetting(db);
+                setlblMsgCommander(MainActivity.this, "Commander phone is set to:\n " + current.commanderAddress );
+            }
+        } );
+
+
+//        txtSend.setOnClickListener(new View.OnClickListener(){
+//            @Override
+//            public void onClick(View v) {
+//
+//                // send the message to the phone number provided
+//                sendText(message.getText().toString(),phoneNo.getText().toString());
+//
+//            }
+//        });
 
 
         mTextMessage = (TextView) findViewById(R.id.message);
         BottomNavigationView navigation = (BottomNavigationView) findViewById(R.id.navigation);
         navigation.setOnNavigationItemSelectedListener(mOnNavigationItemSelectedListener);
     }
-    protected void setlblMessage(String message){
-        TextView lblMessage = (TextView) findViewById(R.id.lblMessage);
+    protected static void setlblMessage(MainActivity main, String message){
+
+        TextView lblMessage = (TextView) main.findViewById(R.id.lblMessage);
         lblMessage.setText(message);
     }
+    protected static void setlblMsgCommander(MainActivity main, String message ){
+
+        TextView lblMessage = (TextView) main.findViewById(R.id.lblMsgCommander);
+        lblMessage.setText(message);
+    }
+
+    public SQLiteDatabase getDb(){
+        SmsListener listener = new SmsListener();
+        boolean result = listener.checkDatabasePath("/data/data/com.example.rob.myapplication/databases/forwardr.db");
+        SQLiteDatabase db = SQLiteDatabase.openOrCreateDatabase("/data/data/com.example.rob.myapplication/databases/forwardr.db", null);
+        return db;
+   }
     protected boolean checkPermsssionsSms(){
         boolean nr =false;
-        String[] permissionArrays = new String[]{Manifest.permission.READ_SMS, Manifest.permission.RECEIVE_SMS};
+        String[] permissionArrays = new String[]{
+                Manifest.permission.READ_CONTACTS,
+                Manifest.permission.READ_SMS,
+                Manifest.permission.RECEIVE_SMS,
+                Manifest.permission.SEND_SMS,
+                Manifest.permission.VIBRATE,
+                Manifest.permission.RECEIVE_MMS,
+
+               // android.Manifest.permission.WRITE_SMS,
+
+//
+//   Manifest.permission.WRITE_CONTACTS,
+////Manifest.permission.READ_PROFILE,
+//Manifest.permission.READ_PHONE_STATE,
+//
+//
+//Manifest.permission.ACCESS_NETWORK_STATE,
+//Manifest.permission.CHANGE_NETWORK_STATE,
+// Manifest.permission.WRITE_SETTINGS,
+//    Manifest.permission.INTERNET,
+
+                Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                Manifest.permission.READ_EXTERNAL_STORAGE,
+        };
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             requestPermissions(permissionArrays, 11111);
             for( String permission : permissionArrays) {
@@ -215,7 +330,7 @@ public class MainActivity extends AppCompatActivity {
         } else {
             // empty box, no SMS
         }
-
+        cursor.close();
         return mySMSList;
     }
     @Override
